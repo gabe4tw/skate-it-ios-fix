@@ -34,8 +34,33 @@ Requires iOS 17.4 or newer (for older versions, see the JIT table in
    `Applesauce-iOS-unsigned.ipa`.
 2. Sideload it with AltStore, SideStore or Sideloadly. If the official
    Applesauce is installed, back up its saves first.
-3. Enable JIT with StikDebug (the bolt button in the app).
-4. Add your own decrypted copy of Skate It and start it.
+3. Set up [StikDebug](https://github.com/StephenDev0/StikDebug) with its pairing
+   file and LocalDevVPN (one-time; see
+   [platform/ios/README.md](platform/ios/README.md#stikdebug-and-localdevvpn)).
+4. Supply your own copy of Skate It. This app doesn't include the game. Either
+   tap **Import Game**, or put the decrypted `.ipa` in
+   **Files › On My iPhone › Applesauce › touchHLE_apps**.
+
+## Starting the game
+
+The app starts Skate It on its own instead of waiting in the library:
+
+1. Open the app. If JIT is off, it asks StikDebug to enable it (StikDebug
+   briefly comes to the front).
+2. Once JIT is on, Skate It starts. Exiting the game returns to the library;
+   reopen the app to auto-start again.
+
+If StikDebug isn't installed or JIT still isn't on when you come back, the usual
+"JIT Isn't Enabled" prompt appears.
+
+**Why JIT isn't simply always on:** on iOS 17.4+ a sideloaded app can't enable
+JIT for itself. A debugger has to attach to it each time it starts, and that's
+what StikDebug does. Permanent JIT only exists for TrollStore installs on A11
+and older devices, which doesn't cover an iPhone 15.
+
+The game to auto-start is set by `ApplesauceAutoLaunchBundleIdentifier` in
+[platform/ios/Config/Info.plist](platform/ios/Config/Info.plist). Remove the
+key to get Applesauce's normal library behaviour.
 
 ## Building
 
@@ -49,6 +74,9 @@ To build on a Mac yourself, follow "Build From Source" in
 - The emulator and app source (everything inherited from Applesauce, HyperHLE
   and touchHLE, **including the modified files above**) is under the
   [Mozilla Public License 2.0](LICENSE), like upstream.
+- The auto-start change modifies upstream's MPL-2.0 files
+  (`platform/ios/Sources/NativeHost.swift`, `platform/ios/Config/Info.plist`) and
+  is MPL-2.0 as well.
 - Files added by this project that aren't derived from upstream (this README and
   `.github/workflows/build-ios-ipa.yml`) are under the
   [GNU GPL 3.0](LICENSE-GPL-3.0).

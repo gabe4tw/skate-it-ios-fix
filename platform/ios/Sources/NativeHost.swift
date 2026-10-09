@@ -336,6 +336,79 @@ private final class GameLibrary: ObservableObject {
         )
     }
 
+    /// Set once the auto-launch game has been started (or handed to the normal
+    /// JIT prompt), so leaving it for the library doesn't start it again.
+    private var autoLaunchDone = false
+    /// StikDebug is only asked once per process; if JIT is still off when the
+    /// app comes back, the usual "JIT Isn't Enabled" alert takes over.
+    private var autoLaunchRequestedJIT = false
+    /// Whether the app has left the foreground since StikDebug was asked.
+    /// Until then a JIT-less call means StikDebug is still on its way, not
+    /// that it failed.
+    private var autoLaunchLeftForJIT = false
+
+    func noteLeftForeground() {
+        if autoLaunchRequestedJIT {
+            autoLaunchLeftForJIT = true
+        }
+    }
+
+    /// Starts the game named by `AutoLaunch.bundleIdentifier` as soon as the
+    /// app opens, asking StikDebug for JIT first when needed. Does nothing when
+    /// the game isn't in the library yet; the user still has to supply it.
+    func autoLaunchIfNeeded(
+        scaleHack: Int,
+        orientation: Int,
+        networkAccess: Bool,
+        analogTilt: Bool,
+        openURL: @escaping (URL, @escaping (Bool) -> Void) -> Void
+    ) {
+        guard let bundleIdentifier = AutoLaunch.bundleIdentifier,
+              !autoLaunchDone,
+              !isLaunching,
+              !isImporting,
+              heldLaunch == nil,
+              let game = games.first(where: { $0.bundleIdentifier == bundleIdentifier })
+        else {
+            return
+        }
+
+        if !touchhle_ios_jit_available(),
+           JITMethod.current == .stikDebug,
+           let url = StikDebug.enableJITURL {
+            if !autoLaunchRequestedJIT {
+                autoLaunchRequestedJIT = true
+                openURL(url) { [weak self] accepted in
+                    // StikDebug isn't installed: show the usual JIT alert instead.
+                    guard let self, !accepted else { return }
+                    self.autoLaunchLeftForJIT = true
+                    self.autoLaunchIfNeeded(
+                        scaleHack: scaleHack,
+                        orientation: orientation,
+                        networkAccess: networkAccess,
+                        analogTilt: analogTilt,
+                        openURL: openURL
+                    )
+                }
+                return
+            }
+            if !autoLaunchLeftForJIT {
+                // StikDebug is still opening.
+                return
+            }
+            // Came back without JIT: fall through to the usual JIT alert.
+        }
+
+        autoLaunchDone = true
+        launch(
+            game,
+            scaleHack: scaleHack,
+            orientation: orientation,
+            networkAccess: networkAccess,
+            analogTilt: analogTilt
+        )
+    }
+
     private func start(
         _ game: GameFile,
         scaleHack: Int,
@@ -824,7 +897,11 @@ private struct LibraryView: View {
                     TouchHLEEmptyState(
                         title: "No Games Yet",
                         systemImage: "gamecontroller",
-                        description: "Import a 32-bit iPhone game to add it to your library."
+                        description: AutoLaunch.bundleIdentifier == nil
+                            ? "Import a 32-bit iPhone game to add it to your library."
+                            : "Import your own copy of the game, or put its .ipa in Files › "
+                                + "On My iPhone › Applesauce › touchHLE_apps. It will start "
+                                + "automatically from then on."
                     )
                 } else {
                     ScrollView {
@@ -953,8 +1030,31 @@ private struct LibraryView: View {
         .touchHLEOnChange(of: scenePhase) { newPhase in
             if newPhase == .active {
                 library.reload()
+                autoLaunch()
+            } else if newPhase == .background {
+                library.noteLeftForeground()
             }
         }
+        .touchHLEOnChange(of: library.games.map(\.id)) { _ in
+            // A game imported (or dropped in via Files) while the app is open.
+            autoLaunch()
+        }
+        .onAppear {
+            // Let the host window finish appearing before the game takes it over.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                autoLaunch()
+            }
+        }
+    }
+
+    private func autoLaunch() {
+        library.autoLaunchIfNeeded(
+            scaleHack: scaleHack,
+            orientation: orientation,
+            networkAccess: networkAccess,
+            analogTilt: analogTilt,
+            openURL: { url, completion in openURL(url, completion: completion) }
+        )
     }
 
     private var heldLaunchBinding: Binding<Bool> {
@@ -977,6 +1077,21 @@ private struct LibraryView: View {
                 }
             }
         )
+    }
+}
+
+/// One game the app starts on its own, named by bundle identifier in
+/// Info.plist (`ApplesauceAutoLaunchBundleIdentifier`). The game is never
+/// bundled with the app: it is whichever matching IPA the user has put in
+/// Documents/touchHLE_apps.
+private enum AutoLaunch {
+    static var bundleIdentifier: String? {
+        guard let value = Bundle.main.object(
+            forInfoDictionaryKey: "ApplesauceAutoLaunchBundleIdentifier"
+        ) as? String, !value.isEmpty else {
+            return nil
+        }
+        return value
     }
 }
 
