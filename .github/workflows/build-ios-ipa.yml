@@ -7,7 +7,7 @@ name: Build iOS IPA
 on:
   workflow_dispatch:
   push:
-    branches: [skateit-fixes]
+    branches: [main, skateit-fixes]
 
 jobs:
   build-ios:
