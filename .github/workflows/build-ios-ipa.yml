@@ -4,9 +4,10 @@ name: Build iOS IPA
 # platform/ios/README.md ("Unsigned Release Build"), so it can be built without
 # a Mac. The IPA is uploaded as a workflow artifact; sideload it as usual.
 #
-# Publishing a GitHub release also attaches the IPA to that release. To attach
-# one to an existing release, run this workflow manually and enter the
-# release's tag.
+# Publishing a GitHub release also attaches the IPA to that release. Pushing a
+# tag creates a release for it (if there isn't one yet) and attaches the IPA.
+# To attach one to an existing release, run this workflow manually and enter
+# the release's tag.
 
 on:
   workflow_dispatch:
@@ -17,6 +18,7 @@ on:
         default: ""
   push:
     branches: [main]
+    tags: ["*"]
   release:
     types: [published]
 
@@ -27,7 +29,7 @@ jobs:
     permissions:
       contents: write
     env:
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
 
     steps:
       - name: Checkout
@@ -101,6 +103,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            NOTES_FILE=.github/release-notes/$RELEASE_TAG.md
+            if [ -f "$NOTES_FILE" ]; then
+              set -- --notes-file "$NOTES_FILE"
+            else
+              set -- --generate-notes
+            fi
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Skate It Fix $RELEASE_TAG" \
+              "$@"
+          fi
           gh release upload "$RELEASE_TAG" \
             dist/Applesauce-iOS-unsigned.ipa \
             dist/Applesauce-iOS-unsigned.ipa.sha256 \
