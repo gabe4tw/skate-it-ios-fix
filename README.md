@@ -40,7 +40,7 @@ Requires iOS 17.4 or newer (for older versions, see the JIT table in
    [platform/ios/README.md](platform/ios/README.md#stikdebug-and-localdevvpn)).
 4. Supply your own copy of Skate It. This app doesn't include the game. Either
    tap **Import Game**, or put the decrypted `.ipa` in
-   **Files › On My iPhone › Applesauce › touchHLE_apps**.
+   **Files › On My iPhone › Skate It Fix › touchHLE_apps**.
 
 ## Starting the game
 
@@ -81,6 +81,8 @@ To build on a Mac yourself, follow "Build From Source" in
 - The auto-start change modifies upstream's MPL-2.0 files
   (`platform/ios/Sources/NativeHost.swift`, `platform/ios/Config/Info.plist`) and
   is MPL-2.0 as well.
-- Files added by this project that aren't derived from upstream (this README and
-  `.github/workflows/build-ios-ipa.yml`) are under the
+- Files added by this project that aren't derived from upstream (this README,
+  `.github/workflows/build-ios-ipa.yml`, and the app icon in
+  `platform/ios/Assets.xcassets/AppIcon.appiconset`, which is original artwork and
+  contains no EA material) are under the
   [GNU GPL 3.0](LICENSE-GPL-3.0).

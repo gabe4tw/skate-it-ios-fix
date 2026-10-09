@@ -900,7 +900,7 @@ private struct LibraryView: View {
                         description: AutoLaunch.bundleIdentifier == nil
                             ? "Import a 32-bit iPhone game to add it to your library."
                             : "Import your own copy of the game, or put its .ipa in Files › "
-                                + "On My iPhone › Applesauce › touchHLE_apps. It will start "
+                                + "On My iPhone › Skate It Fix › touchHLE_apps. It will start "
                                 + "automatically from then on."
                     )
                 } else {
