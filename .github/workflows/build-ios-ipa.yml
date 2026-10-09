@@ -3,16 +3,31 @@ name: Build iOS IPA
 # Builds the unsigned Applesauce IPA on a GitHub macOS runner, following
 # platform/ios/README.md ("Unsigned Release Build"), so it can be built without
 # a Mac. The IPA is uploaded as a workflow artifact; sideload it as usual.
+#
+# Publishing a GitHub release also attaches the IPA to that release. To attach
+# one to an existing release, run this workflow manually and enter the
+# release's tag.
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Attach the IPA to the release with this tag (optional)"
+        required: false
+        default: ""
   push:
     branches: [main]
+  release:
+    types: [published]
 
 jobs:
   build-ios:
     runs-on: macos-26
     timeout-minutes: 120
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
 
     steps:
       - name: Checkout
@@ -80,3 +95,14 @@ jobs:
             dist/Applesauce-iOS-unsigned.ipa
             dist/Applesauce-iOS-unsigned.ipa.sha256
           if-no-files-found: error
+
+      - name: Attach IPA to release
+        if: env.RELEASE_TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            dist/Applesauce-iOS-unsigned.ipa \
+            dist/Applesauce-iOS-unsigned.ipa.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

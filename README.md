@@ -28,10 +28,11 @@ The same fixes are proposed upstream to HyperHLE from
 Requires iOS 17.4 or newer (for older versions, see the JIT table in
 [platform/ios/README.md](platform/ios/README.md)).
 
-1. Open the latest successful run of
-   [Build iOS IPA](../../actions/workflows/build-ios-ipa.yml) while logged in to
-   GitHub, and download the `Applesauce-iOS-unsigned-…` artifact. Unzip it to get
-   `Applesauce-iOS-unsigned.ipa`.
+1. Download `Applesauce-iOS-unsigned.ipa` from the latest
+   [release](../../releases). For the newest build of `main`, open the latest
+   successful run of [Build iOS IPA](../../actions/workflows/build-ios-ipa.yml)
+   while logged in to GitHub instead, download the `Applesauce-iOS-unsigned-…`
+   artifact and unzip it.
 2. Sideload it with AltStore, SideStore or Sideloadly. If the official
    Applesauce is installed, back up its saves first.
 3. Set up [StikDebug](https://github.com/StephenDev0/StikDebug) with its pairing
@@ -66,6 +67,9 @@ key to get Applesauce's normal library behaviour.
 
 Every push to `main` builds the unsigned IPA on a GitHub macOS runner
 ([.github/workflows/build-ios-ipa.yml](.github/workflows/build-ios-ipa.yml)).
+Publishing a release builds it too and attaches the IPA and its SHA-256 to the
+release. Applesauce's own release and AltStore-feed workflows are removed, since
+they publish for the Applesauce project.
 To build on a Mac yourself, follow "Build From Source" in
 [platform/ios/README.md](platform/ios/README.md).
 
