@@ -1,0 +1,82 @@
+name: Build iOS IPA
+
+# Builds the unsigned Applesauce IPA on a GitHub macOS runner, following
+# platform/ios/README.md ("Unsigned Release Build"), so it can be built without
+# a Mac. The IPA is uploaded as a workflow artifact; sideload it as usual.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [skateit-fixes]
+
+jobs:
+  build-ios:
+    runs-on: macos-26
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -n 1)
+          echo "Using $XCODE"
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+
+      - name: Install build tools
+        run: |
+          brew list ninja >/dev/null 2>&1 || brew install ninja
+          brew list ldid >/dev/null 2>&1 || brew install ldid
+          rustup update stable
+          rustup target add aarch64-apple-ios
+          cmake --version
+          xcodebuild -version
+
+      - name: Try to get cached copy of Boost
+        id: cache-boost
+        uses: actions/cache@v4
+        with:
+          path: vendor/boost
+          key: boost_1_81_0_macos
+
+      - name: Download Boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          curl -L -O "https://archives.boost.io/release/1.81.0/source/boost_1_81_0.tar.gz"
+          echo "205666dea9f6a7cfed87c7a6dfbeb52a2c1b9de55712c9c1a87735d7181452b6  boost_1_81_0.tar.gz" | shasum -a 256 -c -
+          mkdir -p vendor
+          tar xzf boost_1_81_0.tar.gz -C vendor
+          mv vendor/boost_1_81_0 vendor/boost
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/rust-ios-native
+          key: rust-ios-${{ hashFiles('Cargo.lock', 'platform/ios/rust-entry/Cargo.toml') }}
+          restore-keys: rust-ios-
+
+      - name: Build shared SDL2
+        run: sh platform/ios/scripts/build-sdl-shared.sh iphoneos
+
+      - name: Build app
+        run: sh platform/ios/scripts/build-host.sh iphoneos Release
+
+      - name: Package unsigned IPA
+        run: |
+          sh platform/ios/scripts/package-ipa.sh
+          sh platform/ios/scripts/verify-ipa.sh dist/Applesauce-iOS-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Applesauce-iOS-unsigned-${{ github.sha }}
+          path: |
+            dist/Applesauce-iOS-unsigned.ipa
+            dist/Applesauce-iOS-unsigned.ipa.sha256
+          if-no-files-found: error
