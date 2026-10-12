@@ -1,4 +1,4 @@
-# skate-it-ios-fix
+# skate-it-ios-fix (WIP)
 
 Get **Skate It** (EA, 2010, `com.ea.skateit.inc`, v1.0.70, 32-bit armv6)
 running on modern iPhones.
